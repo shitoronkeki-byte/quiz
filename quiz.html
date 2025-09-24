@@ -3,25 +3,21 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>クイズ（5問シャッフル／モバイル埋め込み向け・横スクロール防止）</title>
+<title>クイズ（シンプル版）</title>
 <style>
   :root{
     --bg:#f6fbff; --card:#ffffff; --ink:#223043;
     --brand1:#7ac8ff; --brand2:#5aa9ff; --accent:#19c37d; --danger:#ff6b6b;
     --ring:#dfe9ff; --shadow:0 18px 50px rgba(20,37,74,.12); --radius:22px;
   }
-  /* ★ 横スクロール防止＆サイズ計算の安定化 */
   *{ box-sizing:border-box }
   html,body{ margin:0; padding:0; overflow-x:hidden; background:var(--bg); color:var(--ink);
              font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif }
-  /* ★ 内部スクロールなし：高さは内容に追従 */
   .wrap{ display:block; padding:12px 10px }
-  /* ★ 横幅をやや縮小（max-width:600px） */
   .quiz{ width:100%; max-width:600px; margin:0 auto; background:var(--card); border-radius:22px;
          box-shadow:var(--shadow); padding:18px 14px 20px; border:1px solid var(--ring) }
   .bar{ height:6px; background:#eef4ff; border-radius:999px; overflow:hidden; margin:0 6px 12px }
   .fill{ height:100%; width:0; background:linear-gradient(90deg,var(--brand1),var(--brand2)); transition:width .4s ease }
-  /* ★ はみ出し防止のため折返し許可 */
   .hdr{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; padding:0 6px; flex-wrap:wrap }
   .pill{ font-weight:700; background:#eef4ff; border:1px solid var(--ring); padding:6px 9px; border-radius:999px; font-size:0.9rem }
   .q{ margin:8px 6px 12px; font-size:1rem; font-weight:700; line-height:1.6; white-space:pre-wrap; word-break:break-word }
@@ -44,11 +40,6 @@
   .solid,.ghost{ font-weight:800; font-size:.95rem; border-radius:12px; padding:10px 14px; border:0; cursor:pointer }
   .solid{ color:#fff; background:linear-gradient(145deg,#19c37d,#09a76b) }
   .ghost{ background:#eef4ff; color:#2d437a; border:2px solid #d8e5ff }
-  @media (max-width:520px){
-    .q{ font-size:0.95rem }
-    .btn{ font-size:0.9rem; padding:10px }
-    .pill{ font-size:0.85rem }
-  }
 </style>
 </head>
 <body>
@@ -68,8 +59,8 @@
 
 <script>
 /* ====== 設定 ====== */
-const JSON_URL = "https://shitoronkeki-byte.github.io/quiz/questions.json"; // ←あなたのURL
-const PER_SET = 5; // 常に5問
+const JSON_URL = "https://shitoronkeki-byte.github.io/quiz/questions.json";
+const PER_SET = 5;
 
 /* ====== 状態 ====== */
 let allQuestions = [];
@@ -77,40 +68,36 @@ let setQuestions = [];
 let idx = 0;
 let score = 0;
 
-/* ====== 起動：JSON読込 → 初回セット ====== */
+/* ====== 起動 ====== */
 async function loadQuestions(){
   try{
     const res = await fetch(JSON_URL, {cache:"no-store"});
     allQuestions = await res.json();
-    newSet(); // 初回は5問ランダム
+    newSet();
   }catch(e){
     document.getElementById("question").textContent = "問題データを読み込めませんでした。";
     console.error(e);
   }
 }
 
-/* ====== セット生成 ====== */
 function newSet(){
   const pool = [...allQuestions];
   shuffle(pool);
   setQuestions = pool.slice(0, Math.min(PER_SET, pool.length));
-  shuffle(setQuestions); // 出題順もシャッフル
+  shuffle(setQuestions);
   idx = 0; score = 0;
   restoreShell();
   render();
 }
-
 function sameSet(){
-  shuffle(setQuestions); // 同じ5問の順番だけシャッフル
+  shuffle(setQuestions);
   idx = 0; score = 0;
   restoreShell();
   render();
 }
 
-/* ====== 表示 ====== */
 function render(){
   if(idx >= setQuestions.length){ return showFinal(); }
-
   const q = setQuestions[idx];
   byId("counter").textContent = `問題 ${idx+1} / ${setQuestions.length}`;
   byId("scorepill").textContent = `得点 ${score}`;
@@ -157,7 +144,6 @@ function nextQuestion(){
   else{ showFinal(); }
 }
 
-/* ====== 結果画面（また5問へ） ====== */
 function showFinal(){
   const total = setQuestions.length;
   const percent = Math.round((score/total)*100);
@@ -175,7 +161,6 @@ function showFinal(){
   `;
 }
 
-/* ====== 殻再生成（高さは内容に追従） ====== */
 function restoreShell(){
   const wrap = document.querySelector('.wrap');
   wrap.innerHTML = `
@@ -193,7 +178,6 @@ function restoreShell(){
   `;
 }
 
-/* ====== ユーティリティ ====== */
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
     const j = Math.floor(Math.random()*(i+1));
@@ -202,7 +186,6 @@ function shuffle(arr){
 }
 function byId(id){ return document.getElementById(id); }
 
-/* 起動 */
 loadQuestions();
 </script>
 </body>
