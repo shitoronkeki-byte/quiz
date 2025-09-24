@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>クイズ（紙吹雪追加版）</title>
+<title>クイズ（紙吹雪四角形版）</title>
 <style>
   :root{
     --bg:#f6fbff; --card:#ffffff; --ink:#223043;
@@ -41,7 +41,7 @@
   .solid{ color:#fff; background:linear-gradient(145deg,#19c37d,#09a76b) }
   .ghost{ background:#eef4ff; color:#2d437a; border:2px solid #d8e5ff }
 
-  /* 紙吹雪用キャンバス */
+  /* 紙吹雪キャンバス */
   #confetti-canvas {
     position: fixed;
     top:0; left:0;
@@ -79,7 +79,7 @@ let setQuestions = [];
 let idx = 0;
 let score = 0;
 
-/* ====== 紙吹雪 ====== */
+/* ====== 紙吹雪（四角形・寿命つき） ====== */
 const confettiCanvas = document.getElementById("confetti-canvas");
 const ctx = confettiCanvas.getContext("2d");
 let confettiPieces = [];
@@ -94,40 +94,45 @@ resizeCanvas();
 
 function startConfetti(){
   confettiPieces = [];
+  const now = Date.now();
   for(let i=0; i<150; i++){
     confettiPieces.push({
       x: Math.random()*confettiCanvas.width,
-      y: Math.random()*confettiCanvas.height - confettiCanvas.height,
-      r: Math.random()*6+4,
-      d: Math.random()*0.5 + 0.5,
+      y: -Math.random()*confettiCanvas.height,   // 上から落ちる
+      size: Math.random()*8+6,
+      speed: Math.random()*3+2,
+      drift: Math.random()*2-1, // 左右揺れ
       color: `hsl(${Math.random()*360},100%,50%)`,
-      tilt: Math.random()*10 - 10
+      created: now,
+      lifetime: 3000 + Math.random()*2000 // 3〜5秒で消滅
     });
   }
   confettiActive = true;
   requestAnimationFrame(updateConfetti);
-  setTimeout(()=>confettiActive=false, 3000); // 3秒で止まる
 }
 
 function updateConfetti(){
   if(!confettiActive) return;
+  const now = Date.now();
   ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+
+  confettiPieces = confettiPieces.filter(p => now - p.created < p.lifetime);
+
   confettiPieces.forEach(p=>{
-    ctx.beginPath();
     ctx.fillStyle = p.color;
-    ctx.ellipse(p.x, p.y, p.r, p.r/2, p.tilt, 0, Math.PI*2);
-    ctx.fill();
-    p.y += p.d*4;
-    p.x += Math.sin(p.y*0.01);
-    if(p.y > confettiCanvas.height){
-      p.y = -10;
-      p.x = Math.random()*confettiCanvas.width;
-    }
+    ctx.fillRect(p.x, p.y, p.size, p.size); // 四角形
+    p.y += p.speed;
+    p.x += p.drift;
   });
-  requestAnimationFrame(updateConfetti);
+
+  if(confettiPieces.length>0){
+    requestAnimationFrame(updateConfetti);
+  } else {
+    confettiActive = false;
+  }
 }
 
-/* ====== 起動：JSON読込 → 初回セット ====== */
+/* ====== クイズ処理 ====== */
 async function loadQuestions(){
   try{
     const res = await fetch(JSON_URL, {cache:"no-store"});
@@ -139,7 +144,6 @@ async function loadQuestions(){
   }
 }
 
-/* ====== セット生成 ====== */
 function newSet(){
   const pool = [...allQuestions];
   shuffle(pool);
@@ -156,10 +160,8 @@ function sameSet(){
   render();
 }
 
-/* ====== 表示 ====== */
 function render(){
   if(idx >= setQuestions.length){ return showFinal(); }
-
   const q = setQuestions[idx];
   byId("counter").textContent = `問題 ${idx+1} / ${setQuestions.length}`;
   byId("scorepill").textContent = `得点 ${score}`;
@@ -189,7 +191,7 @@ function checkAnswer(chosen, correct){
   const ok = chosen.startsWith(correct);
   if(ok){
     score++;
-    startConfetti(); // ★ 正解時に紙吹雪発動
+    startConfetti(); // ★ 正解時に紙吹雪
   }
 
   const resultEl = byId("result");
@@ -209,7 +211,6 @@ function nextQuestion(){
   else{ showFinal(); }
 }
 
-/* ====== 結果画面 ====== */
 function showFinal(){
   const total = setQuestions.length;
   const percent = Math.round((score/total)*100);
@@ -227,7 +228,6 @@ function showFinal(){
   `;
 }
 
-/* ====== 殻再生成 ====== */
 function restoreShell(){
   const wrap = document.querySelector('.wrap');
   wrap.innerHTML = `
@@ -245,7 +245,6 @@ function restoreShell(){
   `;
 }
 
-/* ====== ユーティリティ ====== */
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
     const j = Math.floor(Math.random()*(i+1));
@@ -254,7 +253,6 @@ function shuffle(arr){
 }
 function byId(id){ return document.getElementById(id); }
 
-/* 起動 */
 loadQuestions();
 </script>
 </body>
