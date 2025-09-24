@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>クイズ（JSON外部読込版・6問＆再挑戦ボタン付き）</title>
+<title>クイズ（JSON外部読込版・5問セット循環）</title>
 <style>
   :root{
     --bg:#f6fbff; --card:#ffffff; --ink:#223043;
@@ -57,36 +57,57 @@
 <script>
 /* ====== 設定 ====== */
 const JSON_URL = "https://shitoronkeki-byte.github.io/quiz/questions.json"; // ←あなたの公開URL
+const PER_SET = 5; // 1セットの出題数
 
 /* ====== 状態 ====== */
-let allQuestions = [];   // 読み込んだ全問題（6問）
-let order = [];          // 出題順の配列（同じセット用に保持）
-let idx = 0;             // 現在のインデックス
+let allQuestions = [];   // JSONから読んだ全問題
+let setQuestions = [];   // 今回の5問セット
+let idx = 0;             // セット内の現在インデックス
 let score = 0;
 
-/* ====== 初期化（JSON読込） ====== */
+/* ====== 初期化（JSON読込→5問セット生成） ====== */
 async function loadQuestions(){
   try{
     const res = await fetch(JSON_URL, {cache:"no-store"});
     allQuestions = await res.json();
-    // 初回は読み込んだ順のまま出題（6問）
-    order = allQuestions.map(q=>q);
-    idx = 0; score = 0;
-    render();
+    newSet(); // 初回セットを作成
   }catch(e){
     document.getElementById("question").textContent = "問題データを読み込めませんでした。";
     console.error(e);
   }
 }
 
+/* ====== セット生成 ====== */
+function makeRandomSet(n){
+  const pool = [...allQuestions];
+  shuffle(pool);
+  return pool.slice(0, Math.min(n, pool.length));
+}
+
+function newSet(){
+  // 5問ランダム抽出＆順番もランダム
+  setQuestions = makeRandomSet(PER_SET);
+  shuffle(setQuestions);
+  idx = 0; score = 0;
+  restoreShell();
+  render();
+}
+
+function sameSet(){
+  // 今の5問を同じ順番で最初から
+  idx = 0; score = 0;
+  restoreShell();
+  render();
+}
+
 /* ====== 画面描画 ====== */
 function render(){
-  if(idx >= order.length){ return showFinal(); }
+  if(idx >= setQuestions.length){ return showFinal(); }
 
-  const q = order[idx];
-  document.getElementById("counter").textContent = `問題 ${idx+1} / ${order.length}`;
+  const q = setQuestions[idx];
+  document.getElementById("counter").textContent = `問題 ${idx+1} / ${setQuestions.length}`;
   document.getElementById("scorepill").textContent = `得点 ${score}`;
-  document.getElementById("fill").style.width = ((idx+1)/order.length)*100 + "%";
+  document.getElementById("fill").style.width = ((idx+1)/setQuestions.length)*100 + "%";
 
   // 本文と選択肢
   document.getElementById("question").textContent = q.question;
@@ -120,19 +141,19 @@ function checkAnswer(chosen, correct){
   document.querySelectorAll(".btn").forEach(b=>b.disabled=true);
 
   const nextBtn = document.getElementById("next");
-  nextBtn.textContent = (idx === order.length-1) ? "結果を見る" : "次へ";
+  nextBtn.textContent = (idx === setQuestions.length-1) ? "結果を見る" : "次へ";
   nextBtn.style.display = "block";
   nextBtn.classList.add("show");
 }
 
 function nextQuestion(){
-  if(idx < order.length-1){ idx++; render(); }
+  if(idx < setQuestions.length-1){ idx++; render(); }
   else{ showFinal(); }
 }
 
-/* ====== 結果画面＋再挑戦 ====== */
+/* ====== 結果画面（ここから再び5問セットへ） ====== */
 function showFinal(){
-  const total = order.length;
+  const total = setQuestions.length;
   const percent = Math.round((score/total)*100);
   const container = document.getElementById("quiz");
   container.innerHTML = `
@@ -141,36 +162,20 @@ function showFinal(){
       <div class="score">${score} / ${total}</div>
       <div class="pill">正答率 ${percent}%</div>
       <div class="again-row">
-        <button class="solid" onclick="newSet()">新しい問題セット</button>
-        <button class="ghost" onclick="sameSet()">同じセットをもう一度</button>
+        <button class="solid" onclick="newSet()">新しい問題セット（5問ランダム）</button>
+        <button class="ghost" onclick="sameSet()">同じ5問をもう一度</button>
       </div>
     </div>
   `;
 }
 
-/* 新しい問題セット＝順番をシャッフルして全6問を再出題 */
-function newSet(){
-  score = 0; idx = 0;
-  order = [...allQuestions];
-  shuffle(order);
-  restoreShell();
-  render();
-}
-
-/* 同じセット＝同じ順番のまま全6問を再出題 */
-function sameSet(){
-  score = 0; idx = 0;
-  restoreShell();
-  render();
-}
-
-/* 殻を再生成（進行バー等を戻す） */
+/* ====== 殻を再生成（進行バー等を戻す） ====== */
 function restoreShell(){
   const wrap = document.querySelector('.wrap');
   wrap.innerHTML = `
     <div class="quiz" id="quiz">
       <div class="hdr">
-        <div class="pill" id="counter">問題 1 / ${order.length}</div>
+        <div class="pill" id="counter">問題 1 / ${setQuestions.length || PER_SET}</div>
         <div class="pill" id="scorepill">得点 0</div>
       </div>
       <div class="bar"><div class="fill" id="fill"></div></div>
@@ -182,7 +187,7 @@ function restoreShell(){
   `;
 }
 
-/* フィッシャー–イェーツでシャッフル */
+/* ====== ユーティリティ ====== */
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
     const j = Math.floor(Math.random()*(i+1));
